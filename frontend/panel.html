@@ -1,0 +1,1693 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EcoMercado — Panel de Administración</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  /* ── Reset ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 15px; }
+
+  /* ── Tokens ── */
+  :root {
+    --verde:       #1b5e20;
+    --verde-mid:   #2e7d32;
+    --verde-light: #e8f5e9;
+    --verde-pale:  #f1f8f1;
+    --naranja:     #f57c00;
+    --naranja-bg:  #fff3e0;
+    --rojo:        #c62828;
+    --rojo-bg:     #ffebee;
+    --azul:        #1565c0;
+    --azul-bg:     #e3f2fd;
+    --gris-900:    #1a1a1a;
+    --gris-700:    #3d3d3d;
+    --gris-500:    #757575;
+    --gris-300:    #bdbdbd;
+    --gris-100:    #f5f5f5;
+    --blanco:      #ffffff;
+    --sidebar-w:   240px;
+    --header-h:    56px;
+    --radius:      8px;
+    --shadow:      0 1px 4px rgba(0,0,0,.10), 0 0 0 0.5px rgba(0,0,0,.06);
+    --font:        'Segoe UI', system-ui, sans-serif;
+    --font-mono:   'Consolas', monospace;
+  }
+
+  /* ── Temas de color (se activan con [data-tema] en <html>) ── */
+  :root[data-tema="azul"] {
+    --verde: #0d3b66; --verde-mid: #1565c0; --verde-light: #e3f2fd; --verde-pale: #f0f6fd;
+    --naranja: #00acc1; --naranja-bg: #e0f7fa;
+  }
+  :root[data-tema="naranja"] {
+    --verde: #9a3412; --verde-mid: #c2410c; --verde-light: #ffedd5; --verde-pale: #fff7ed;
+    --naranja: #65a30d; --naranja-bg: #f0fdf4;
+  }
+  :root[data-tema="morado"] {
+    --verde: #4527a0; --verde-mid: #5e35b1; --verde-light: #ede7f6; --verde-pale: #f5f2fb;
+    --naranja: #d81b60; --naranja-bg: #fce4ec;
+  }
+  :root[data-tema="rojo"] {
+    --verde: #8e0000; --verde-mid: #c62828; --verde-light: #ffebee; --verde-pale: #fff5f5;
+    --naranja: #f9a825; --naranja-bg: #fffde7;
+  }
+  :root[data-tema="teal"] {
+    --verde: #00695c; --verde-mid: #00897b; --verde-light: #e0f2f1; --verde-pale: #f0f9f8;
+    --naranja: #ef6c00; --naranja-bg: #fff3e0;
+  }
+  :root[data-tema="gris"] {
+    --verde: #37474f; --verde-mid: #455a64; --verde-light: #eceff1; --verde-pale: #f5f7f8;
+    --naranja: #fb8c00; --naranja-bg: #fff3e0;
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--gris-100);
+    color: var(--gris-900);
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--verde);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0;
+    height: 100vh;
+    z-index: 100;
+  }
+
+  .sidebar-logo {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid rgba(255,255,255,.12);
+  }
+  .sidebar-logo .eco-mark {
+    width: 36px; height: 36px;
+    background: var(--naranja);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 12px; color: #fff;
+    margin-bottom: 10px;
+  }
+  .sidebar-logo h1 {
+    font-size: 17px; font-weight: 600; color: #fff; line-height: 1.2;
+  }
+  .sidebar-logo p {
+    font-size: 11px; color: rgba(255,255,255,.55); margin-top: 2px;
+  }
+
+  .sidebar-nav { padding: 12px 0; flex: 1; overflow-y: auto; }
+
+  .nav-section {
+    padding: 8px 16px 4px;
+    font-size: 10px; font-weight: 600;
+    letter-spacing: .08em;
+    color: rgba(255,255,255,.4);
+    text-transform: uppercase;
+  }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 20px;
+    font-size: 13.5px; color: rgba(255,255,255,.75);
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: background .15s, color .15s;
+    user-select: none;
+  }
+  .nav-item:hover { background: rgba(255,255,255,.08); color: #fff; }
+  .nav-item.active {
+    background: rgba(255,255,255,.13);
+    border-left-color: var(--naranja);
+    color: #fff;
+  }
+  .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; opacity: .8; }
+  .nav-item.active svg { opacity: 1; }
+
+  .sidebar-footer {
+    padding: 14px 20px;
+    border-top: 1px solid rgba(255,255,255,.12);
+    font-size: 12px; color: rgba(255,255,255,.45);
+  }
+  .sidebar-footer strong { color: rgba(255,255,255,.8); display: block; margin-bottom: 2px; }
+
+  /* ── Main layout ── */
+  .main {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  /* ── Topbar ── */
+  .topbar {
+    height: var(--header-h);
+    background: var(--blanco);
+    border-bottom: 0.5px solid var(--gris-300);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .topbar-title { font-size: 16px; font-weight: 600; color: var(--gris-900); }
+  .topbar-title span { color: var(--gris-500); font-weight: 400; font-size: 14px; margin-left: 6px; }
+  .topbar-right { display: flex; align-items: center; gap: 14px; }
+
+  .btn-refresh {
+    border: 0.5px solid var(--gris-300);
+    background: var(--blanco);
+    border-radius: var(--radius);
+    padding: 6px 14px;
+    font-size: 13px; cursor: pointer; color: var(--gris-700);
+    display: flex; align-items: center; gap: 6px;
+    transition: background .15s;
+  }
+  .btn-refresh:hover { background: var(--gris-100); }
+
+  .avatar-wrap { position: relative; }
+  .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--verde-light);
+    color: var(--verde);
+    font-weight: 600; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1.5px solid var(--verde-mid);
+    cursor: pointer;
+  }
+
+  .avatar-menu {
+    position: absolute;
+    top: 42px; right: 0;
+    width: 240px;
+    background: var(--blanco);
+    border: 0.5px solid var(--gris-300);
+    border-radius: 10px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.14);
+    z-index: 150;
+    display: none;
+    overflow: hidden;
+    padding: 6px;
+  }
+  .avatar-menu.open { display: block; }
+  .avatar-menu-head {
+    padding: 10px 10px 8px;
+    border-bottom: 0.5px solid var(--gris-300);
+    margin-bottom: 4px;
+  }
+  .avatar-menu-head strong { font-size: 13px; display: block; }
+  .avatar-menu-head span { font-size: 11.5px; color: var(--gris-500); }
+  .avatar-menu-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 6px;
+    font-size: 13px; color: var(--gris-700);
+    cursor: pointer;
+  }
+  .avatar-menu-item:hover { background: var(--verde-pale); }
+  .avatar-menu-item svg { width: 16px; height: 16px; opacity: .7; flex-shrink: 0; }
+  .avatar-menu-item .estado-dot { width: 7px; height: 7px; border-radius: 50%; margin-left: auto; }
+  .avatar-menu-divider { height: 1px; background: var(--gris-300); margin: 5px 4px; opacity: .6; }
+  .avatar-menu-item.salir { color: var(--rojo); }
+
+  /* ── Page content ── */
+  .page { padding: 24px 28px; flex: 1; display: none; }
+  .page.active { display: block; }
+
+  /* ── Metric cards ── */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
+  .metric-card {
+    background: var(--blanco);
+    border-radius: var(--radius);
+    border: 0.5px solid var(--gris-300);
+    padding: 16px 18px;
+    box-shadow: var(--shadow);
+  }
+  .metric-label { font-size: 11px; color: var(--gris-500); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+  .metric-value { font-size: 26px; font-weight: 600; color: var(--gris-900); line-height: 1; }
+  .metric-sub { font-size: 12px; color: var(--gris-500); margin-top: 4px; }
+  .metric-card.verde .metric-value { color: var(--verde-mid); }
+  .metric-card.naranja .metric-value { color: var(--naranja); }
+  .metric-card.azul .metric-value { color: var(--azul); }
+  .metric-card.rojo .metric-value { color: var(--rojo); }
+
+  /* ── Cards generales ── */
+  .card {
+    background: var(--blanco);
+    border-radius: var(--radius);
+    border: 0.5px solid var(--gris-300);
+    box-shadow: var(--shadow);
+    margin-bottom: 18px;
+  }
+  .card-head {
+    padding: 14px 18px;
+    border-bottom: 0.5px solid var(--gris-300);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card-head h3 { font-size: 14px; font-weight: 600; color: var(--gris-900); }
+  .card-body { padding: 0; }
+
+  /* ── Tabla ── */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead { background: var(--gris-100); }
+  th {
+    text-align: left; padding: 10px 16px;
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .06em;
+    color: var(--gris-500);
+    border-bottom: 0.5px solid var(--gris-300);
+  }
+  td {
+    padding: 11px 16px;
+    border-bottom: 0.5px solid #f0f0f0;
+    color: var(--gris-700);
+  }
+  tr:last-child td { border-bottom: none; }
+  tr.fila-clic { cursor: pointer; }
+  tr:hover td { background: var(--verde-pale); }
+
+  /* ── Badges ── */
+  .badge {
+    display: inline-block; padding: 2px 8px;
+    border-radius: 20px; font-size: 11px; font-weight: 500;
+  }
+  .badge-verde  { background: var(--verde-light); color: var(--verde); }
+  .badge-naranja{ background: var(--naranja-bg);  color: var(--naranja); }
+  .badge-rojo   { background: var(--rojo-bg);     color: var(--rojo); }
+  .badge-azul   { background: var(--azul-bg);     color: var(--azul); }
+  .badge-gris   { background: var(--gris-100);    color: var(--gris-500); }
+
+  /* ── Botones de acción ── */
+  .btn {
+    padding: 7px 14px; border-radius: var(--radius);
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    border: none; transition: opacity .15s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { opacity: .85; }
+  .btn-primary { background: var(--verde-mid); color: #fff; }
+  .btn-danger  { background: var(--rojo);      color: #fff; }
+  .btn-outline {
+    background: transparent;
+    border: 0.5px solid var(--gris-300);
+    color: var(--gris-700);
+  }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+  /* ── Formulario modal ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.45); z-index: 200;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--blanco); border-radius: 12px;
+    width: 480px; max-width: 96vw;
+    box-shadow: 0 8px 32px rgba(0,0,0,.18);
+    max-height: 88vh;
+    display: flex; flex-direction: column;
+  }
+  .modal.modal-lg { width: 620px; }
+  .modal-head {
+    padding: 16px 20px; border-bottom: 0.5px solid var(--gris-300);
+    display: flex; justify-content: space-between; align-items: center;
+    flex-shrink: 0;
+  }
+  .modal-head h3 { font-size: 15px; font-weight: 600; }
+  .modal-close {
+    background: none; border: none; font-size: 20px;
+    cursor: pointer; color: var(--gris-500); line-height: 1;
+  }
+  .modal-body { padding: 20px; overflow-y: auto; }
+  .modal-foot {
+    padding: 14px 20px; border-top: 0.5px solid var(--gris-300);
+    display: flex; justify-content: flex-end; gap: 10px;
+    flex-shrink: 0;
+  }
+
+  /* ── Form elements ── */
+  .form-group { margin-bottom: 14px; }
+  label { display: block; font-size: 12px; font-weight: 500; color: var(--gris-700); margin-bottom: 5px; }
+  input, select, textarea {
+    width: 100%; padding: 8px 10px;
+    border: 0.5px solid var(--gris-300); border-radius: var(--radius);
+    font-size: 13px; font-family: var(--font);
+    background: var(--blanco); color: var(--gris-900);
+    outline: none; transition: border-color .15s;
+  }
+  input:focus, select:focus { border-color: var(--verde-mid); box-shadow: 0 0 0 2px rgba(46,125,50,.12); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* ── Search bar ── */
+  .search-bar {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 16px;
+  }
+  .search-bar input { max-width: 280px; }
+
+  /* ── Estado vacío ── */
+  .empty {
+    text-align: center; padding: 48px 24px;
+    color: var(--gris-500);
+  }
+  .empty svg { width: 40px; height: 40px; margin-bottom: 12px; opacity: .3; }
+  .empty p { font-size: 14px; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--gris-900); color: #fff;
+    padding: 10px 18px; border-radius: var(--radius);
+    font-size: 13px; z-index: 999;
+    opacity: 0; transform: translateY(8px);
+    transition: opacity .25s, transform .25s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.verde { background: var(--verde-mid); }
+  .toast.rojo  { background: var(--rojo); }
+
+  /* ── Monitor ── */
+  .monitor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+  .log-entry {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 16px; border-bottom: 0.5px solid #f0f0f0;
+    font-size: 12px;
+  }
+  .log-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .log-dot.ok     { background: #43a047; }
+  .log-dot.error  { background: var(--rojo); }
+  .log-dot.noauth { background: var(--naranja); }
+  .log-meta { color: var(--gris-500); margin-left: auto; white-space: nowrap; }
+
+  /* ── Loading spinner ── */
+  .spinner {
+    display: inline-block; width: 18px; height: 18px;
+    border: 2px solid var(--gris-300);
+    border-top-color: var(--verde-mid);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Grid 2 cols ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  /* ── Detalle (vista de info) ── */
+  .detalle-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .detalle-item { padding: 10px 0; border-bottom: 0.5px solid #f0f0f0; }
+  .detalle-item.full { grid-column: 1 / -1; }
+  .detalle-label { font-size: 11px; color: var(--gris-500); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
+  .detalle-valor { font-size: 14px; color: var(--gris-900); font-weight: 500; word-break: break-word; }
+
+  /* ── Modal de perfil (tabs) ── */
+  .perfil-tabs { display: flex; gap: 4px; border-bottom: 0.5px solid var(--gris-300); padding: 0 20px; flex-shrink: 0; }
+  .perfil-tab {
+    padding: 10px 12px; font-size: 12.5px; font-weight: 500;
+    color: var(--gris-500); cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  .perfil-tab.active { color: var(--verde-mid); border-bottom-color: var(--verde-mid); }
+  .perfil-panel { display: none; }
+  .perfil-panel.active { display: block; }
+
+  .estado-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 0; border-bottom: 0.5px solid #f0f0f0;
+  }
+  .estado-row:last-child { border-bottom: none; }
+  .estado-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; }
+  .estado-pill .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot.activo { background: #43a047; }
+  .dot.inactivo { background: var(--rojo); }
+
+  /* ── Avatar con foto de perfil ── */
+  .avatar.con-foto {
+    background-size: cover; background-position: center;
+    color: transparent; border-color: var(--verde-mid);
+  }
+</style>
+<script>
+  // Aplica el tema y nombre guardados antes de pintar la página (evita parpadeo)
+  (function () {
+    try {
+      const perfil = JSON.parse(localStorage.getItem('ecomercado_perfil') || '{}');
+      if (perfil.tema) document.documentElement.setAttribute('data-tema', perfil.tema);
+    } catch (e) {}
+  })();
+</script>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════
+     SIDEBAR
+═══════════════════════════════════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="eco-mark">ECO</div>
+    <h1>EcoMercado</h1>
+    <p>Panel de Administración</p>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section">Principal</div>
+
+    <div class="nav-item active" data-page="dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+        <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+      </svg>
+      Vista general
+    </div>
+
+    <div class="nav-section">Gestión</div>
+
+    <div class="nav-item" data-page="productos">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M20 7H4a1 1 0 00-1 1v10a1 1 0 001 1h16a1 1 0 001-1V8a1 1 0 00-1-1z"/>
+        <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
+      </svg>
+      Productos
+    </div>
+
+    <div class="nav-item" data-page="usuarios">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+      </svg>
+      Usuarios
+    </div>
+
+    <div class="nav-item" data-page="ventas">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <path d="M16 10a4 4 0 01-8 0"/>
+      </svg>
+      Ventas
+    </div>
+
+    <div class="nav-section">Reportes</div>
+
+    <div class="nav-item" data-page="reportes">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+        <polyline points="10 9 9 9 8 9"/>
+      </svg>
+      Reportes y folios
+    </div>
+
+    <div class="nav-item" data-page="monitor">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+      </svg>
+      Monitor de actividad
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <strong id="admin-nombre">Administrador</strong>
+    <span id="admin-email">—</span>
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════════════
+     MAIN
+═══════════════════════════════════════════ -->
+<div class="main">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div>
+      <span class="topbar-title" id="page-title">Vista general</span>
+      <span id="page-subtitle"></span>
+    </div>
+    <div class="topbar-right">
+      <button class="btn-refresh" onclick="recargarPagina()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+          <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+        </svg>
+        Actualizar
+      </button>
+
+      <div class="avatar-wrap" id="avatar-wrap">
+        <div class="avatar" id="avatar-initials" onclick="toggleAvatarMenu(event)">AD</div>
+
+        <div class="avatar-menu" id="avatar-menu">
+          <div class="avatar-menu-head">
+            <strong id="menu-admin-nombre">Administrador</strong>
+            <span id="menu-admin-email">—</span>
+          </div>
+
+          <div class="avatar-menu-item" onclick="abrirPerfil('personalizar')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0A1.65 1.65 0 009 3.09V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+            Personalizar perfil
+          </div>
+
+          <div class="avatar-menu-item" onclick="abrirPerfil('general')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            General
+          </div>
+
+          <div class="avatar-menu-item" onclick="abrirPerfil('seguridad')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            Contraseñas y autocompletar
+          </div>
+
+          <div class="avatar-menu-divider"></div>
+
+          <div class="avatar-menu-item" onclick="abrirPerfil('neon')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0018 0V5"/><path d="M3 12a9 3 0 0018 0"/></svg>
+            Neon
+            <span class="estado-dot" id="dot-neon" style="background:var(--gris-300)"></span>
+          </div>
+
+          <div class="avatar-menu-item" onclick="abrirPerfil('mongo')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0018 0V5"/><path d="M3 12a9 3 0 0018 0"/></svg>
+            Mongo
+            <span class="estado-dot" id="dot-mongo" style="background:var(--gris-300)"></span>
+          </div>
+
+          <div class="avatar-menu-divider"></div>
+
+          <div class="avatar-menu-item salir" onclick="cerrarSesion()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Cerrar sesión
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ─────────────────────────────────────────
+       PÁGINA: DASHBOARD
+  ───────────────────────────────────────── -->
+  <section class="page active" id="page-dashboard">
+    <div class="metrics" id="metrics-dashboard">
+      <div class="metric-card verde">
+        <div class="metric-label">Total ventas</div>
+        <div class="metric-value" id="m-ventas">—</div>
+        <div class="metric-sub">registradas en Neon</div>
+      </div>
+      <div class="metric-card naranja">
+        <div class="metric-label">Ingresos totales</div>
+        <div class="metric-value" id="m-ingresos">—</div>
+        <div class="metric-sub">suma de todas las ventas</div>
+      </div>
+      <div class="metric-card azul">
+        <div class="metric-label">Productos activos</div>
+        <div class="metric-value" id="m-productos">—</div>
+        <div class="metric-sub">en catálogo público</div>
+      </div>
+      <div class="metric-card rojo">
+        <div class="metric-label">Usuarios</div>
+        <div class="metric-value" id="m-usuarios">—</div>
+        <div class="metric-sub">registrados</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head"><h3>Ventas recientes</h3></div>
+        <div class="card-body">
+          <table>
+            <thead><tr><th>Folio</th><th>Cliente</th><th>Total</th><th>Método</th></tr></thead>
+            <tbody id="tabla-ventas-recientes"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Productos más vendidos</h3></div>
+        <div class="card-body">
+          <table>
+            <thead><tr><th>Producto</th><th>Vendidos</th><th>Ingresos</th></tr></thead>
+            <tbody id="tabla-ranking"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────
+       PÁGINA: PRODUCTOS
+  ───────────────────────────────────────── -->
+  <section class="page" id="page-productos">
+    <div class="search-bar">
+      <input type="text" id="buscar-producto" placeholder="Buscar por nombre o categoría…" oninput="filtrarTabla('tabla-productos', this.value)" />
+      <button class="btn btn-primary" onclick="abrirModal('modal-producto')">
+        + Nuevo producto
+      </button>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <table>
+          <thead><tr><th>ID</th><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Acciones</th></tr></thead>
+          <tbody id="tabla-productos"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────
+       PÁGINA: USUARIOS
+  ───────────────────────────────────────── -->
+  <section class="page" id="page-usuarios">
+    <div class="search-bar">
+      <input type="text" id="buscar-usuario" placeholder="Buscar por nombre o email…" oninput="filtrarTabla('tabla-usuarios', this.value)" />
+      <button class="btn btn-primary" onclick="abrirModal('modal-usuario')">
+        + Nuevo usuario
+      </button>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <table>
+          <thead><tr><th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody id="tabla-usuarios"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────
+       PÁGINA: VENTAS
+  ───────────────────────────────────────── -->
+  <section class="page" id="page-ventas">
+    <div class="search-bar">
+      <input type="text" id="buscar-venta" placeholder="Buscar por cliente o método de pago…" oninput="filtrarTabla('tabla-ventas', this.value)" />
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <table>
+          <thead><tr><th>ID</th><th>Cliente</th><th>Total</th><th>Método</th><th>Fecha</th></tr></thead>
+          <tbody id="tabla-ventas"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────
+       PÁGINA: REPORTES
+  ───────────────────────────────────────── -->
+  <section class="page" id="page-reportes">
+    <div class="search-bar">
+      <input type="text" id="buscar-reporte" placeholder="Buscar por folio o cliente…" oninput="filtrarTabla('tabla-reportes', this.value)" />
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <table>
+          <thead><tr><th>Folio</th><th>Cliente</th><th>Total</th><th>Método</th><th>Fecha</th><th>MongoDB</th></tr></thead>
+          <tbody id="tabla-reportes"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────
+       PÁGINA: MONITOR
+  ───────────────────────────────────────── -->
+  <section class="page" id="page-monitor">
+    <div class="monitor-grid" id="monitor-metrics"></div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head"><h3>Actividad reciente</h3></div>
+        <div class="card-body" id="monitor-logs"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Alertas</h3></div>
+        <div class="card-body" id="monitor-alertas"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>IPs más activas</h3></div>
+      <div class="card-body">
+        <table>
+          <thead><tr><th>IP</th><th>Solicitudes</th><th>Escrituras</th><th>Errores</th><th>Última actividad</th></tr></thead>
+          <tbody id="tabla-ips"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /main -->
+
+<!-- ═══════════════════════════════════════════
+     MODALES
+═══════════════════════════════════════════ -->
+
+<!-- Modal producto -->
+<div class="modal-overlay" id="modal-producto">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Nuevo producto</h3>
+      <button class="modal-close" onclick="cerrarModal('modal-producto')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nombre</label>
+          <input type="text" id="prod-nombre" placeholder="Ej: Aguacate orgánico" />
+        </div>
+        <div class="form-group">
+          <label>Precio (MXN)</label>
+          <input type="number" id="prod-precio" placeholder="0.00" step="0.01" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Stock</label>
+          <input type="number" id="prod-stock" placeholder="0" />
+        </div>
+        <div class="form-group">
+          <label>Unidad de medida</label>
+          <select id="prod-unidad">
+            <option value="kg">kg</option>
+            <option value="pz" selected>pz</option>
+            <option value="lt">lt</option>
+            <option value="bolsa">bolsa</option>
+            <option value="caja">caja</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>ID Categoría</label>
+          <input type="number" id="prod-categoria" placeholder="1" />
+        </div>
+        <div class="form-group">
+          <label>ID Vendedor</label>
+          <input type="number" id="prod-vendedor" placeholder="1" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Descripción</label>
+        <textarea id="prod-descripcion" rows="2" placeholder="Descripción breve…"></textarea>
+      </div>
+      <div class="form-group">
+        <label>URL de imagen</label>
+        <input type="text" id="prod-imagen" placeholder="https://…" />
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="cerrarModal('modal-producto')">Cancelar</button>
+      <button class="btn btn-primary" onclick="crearProducto()">Guardar producto</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal usuario -->
+<div class="modal-overlay" id="modal-usuario">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Nuevo usuario</h3>
+      <button class="modal-close" onclick="cerrarModal('modal-usuario')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Nombre</label>
+        <input type="text" id="usr-nombre" placeholder="Nombre completo" />
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="usr-email" placeholder="correo@ejemplo.com" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Contraseña</label>
+          <input type="password" id="usr-password" placeholder="••••••••" />
+        </div>
+        <div class="form-group">
+          <label>Rol</label>
+          <select id="usr-rol">
+            <option value="3">Cliente</option>
+            <option value="2">Vendedor</option>
+            <option value="1">Administrador</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="cerrarModal('modal-usuario')">Cancelar</button>
+      <button class="btn btn-primary" onclick="crearUsuario()">Registrar usuario</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de DETALLE (genérico: producto / usuario / venta) -->
+<div class="modal-overlay" id="modal-detalle">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <h3 id="detalle-titulo">Detalle</h3>
+      <button class="modal-close" onclick="cerrarModal('modal-detalle')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="detalle-grid" id="detalle-contenido"></div>
+    </div>
+    <div class="modal-foot" id="detalle-acciones"></div>
+  </div>
+</div>
+
+<!-- Modal de PERFIL (avatar: personalizar / general / seguridad / neon / mongo) -->
+<div class="modal-overlay" id="modal-perfil">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <h3>Cuenta y configuración</h3>
+      <button class="modal-close" onclick="cerrarModalPerfil()">×</button>
+    </div>
+    <div class="perfil-tabs">
+      <div class="perfil-tab" data-tab="personalizar" onclick="cambiarTabPerfil('personalizar')">Personalizar perfil</div>
+      <div class="perfil-tab" data-tab="general" onclick="cambiarTabPerfil('general')">General</div>
+      <div class="perfil-tab" data-tab="seguridad" onclick="cambiarTabPerfil('seguridad')">Contraseñas y autocompletar</div>
+      <div class="perfil-tab" data-tab="neon" onclick="cambiarTabPerfil('neon')">Neon</div>
+      <div class="perfil-tab" data-tab="mongo" onclick="cambiarTabPerfil('mongo')">Mongo</div>
+    </div>
+    <div class="modal-body">
+
+      <!-- Personalizar perfil -->
+      <div class="perfil-panel" data-panel="personalizar">
+        <div class="form-group">
+          <label>Nombre para mostrar</label>
+          <input type="text" id="perfil-nombre" placeholder="Administrador" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Color de acento</label>
+            <select id="perfil-color" onchange="previsualizarTema(this.value)">
+              <option value="verde">Verde (predeterminado)</option>
+              <option value="azul">Azul océano</option>
+              <option value="naranja">Naranja cosecha</option>
+              <option value="morado">Morado violeta</option>
+              <option value="rojo">Rojo carmín</option>
+              <option value="teal">Verde azulado</option>
+              <option value="gris">Gris pizarra</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Iniciales del avatar</label>
+            <input type="text" id="perfil-iniciales" maxlength="2" placeholder="AD" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Foto de perfil (URL)</label>
+          <input type="text" id="perfil-foto" placeholder="https://…" />
+        </div>
+      </div>
+
+      <!-- General -->
+      <div class="perfil-panel" data-panel="general">
+        <div class="detalle-grid" id="perfil-general-datos">
+          <div class="detalle-item"><div class="detalle-label">ID de usuario</div><div class="detalle-valor" id="pg-id">—</div></div>
+          <div class="detalle-item"><div class="detalle-label">Nombre completo</div><div class="detalle-valor" id="pg-nombre">—</div></div>
+          <div class="detalle-item"><div class="detalle-label">Email</div><div class="detalle-valor" id="pg-email">—</div></div>
+          <div class="detalle-item"><div class="detalle-label">Rol</div><div class="detalle-valor" id="pg-rol">—</div></div>
+          <div class="detalle-item"><div class="detalle-label">Estado de cuenta</div><div class="detalle-valor" id="pg-estado">—</div></div>
+          <div class="detalle-item"><div class="detalle-label">Última conexión</div><div class="detalle-valor" id="pg-conexion">—</div></div>
+        </div>
+      </div>
+
+      <!-- Contraseñas y autocompletar -->
+      <div class="perfil-panel" data-panel="seguridad">
+        <div class="form-group">
+          <label>Contraseña actual</label>
+          <input type="password" id="sec-actual" placeholder="••••••••" autocomplete="current-password" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nueva contraseña</label>
+            <input type="password" id="sec-nueva" placeholder="••••••••" autocomplete="new-password" />
+          </div>
+          <div class="form-group">
+            <label>Confirmar nueva contraseña</label>
+            <input type="password" id="sec-confirmar" placeholder="••••••••" autocomplete="new-password" />
+          </div>
+        </div>
+        <div class="estado-row">
+          <span>Guardar y autocompletar contraseñas en este navegador</span>
+          <input type="checkbox" id="sec-autocompletar" checked style="width:auto" />
+        </div>
+        <div class="estado-row">
+          <span>Verificación en dos pasos (2FA)</span>
+          <input type="checkbox" id="sec-2fa" style="width:auto" />
+        </div>
+        <div class="form-group" style="margin-top:14px">
+          <button class="btn btn-primary" onclick="guardarSeguridad()">Actualizar contraseña</button>
+        </div>
+      </div>
+
+      <!-- Neon -->
+      <div class="perfil-panel" data-panel="neon">
+        <div class="estado-row">
+          <span><strong>Proveedor</strong></span>
+          <span>Neon (PostgreSQL serverless)</span>
+        </div>
+        <div class="estado-row">
+          <span><strong>Estado de conexión</strong></span>
+          <span class="estado-pill" id="neon-estado-pill"><span class="dot" id="neon-dot"></span><span id="neon-texto">Verificando…</span></span>
+        </div>
+        <div class="estado-row">
+          <span><strong>Uso</strong></span>
+          <span>Usuarios, productos, categorías y ventas</span>
+        </div>
+        <div class="estado-row">
+          <span><strong>Última verificación</strong></span>
+          <span id="neon-ultima">—</span>
+        </div>
+        <div class="form-group" style="margin-top:14px">
+          <button class="btn btn-outline" onclick="verificarEstadoBD()">Volver a verificar</button>
+        </div>
+      </div>
+
+      <!-- Mongo -->
+      <div class="perfil-panel" data-panel="mongo">
+        <div class="estado-row">
+          <span><strong>Proveedor</strong></span>
+          <span>MongoDB Atlas</span>
+        </div>
+        <div class="estado-row">
+          <span><strong>Modelo</strong></span>
+          <span>Atlas (clúster en la nube)</span>
+        </div>
+        <div class="estado-row">
+          <span><strong>Estado de conexión</strong></span>
+          <span class="estado-pill" id="mongo-estado-pill"><span class="dot" id="mongo-dot"></span><span id="mongo-texto">Verificando…</span></span>
+        </div>
+        <div class="estado-row">
+          <span><strong>Uso</strong></span>
+          <span>Folios y reportes de venta generados</span>
+        </div>
+        <div class="estado-row">
+          <span><strong>Última verificación</strong></span>
+          <span id="mongo-ultima">—</span>
+        </div>
+        <div class="form-group" style="margin-top:14px">
+          <button class="btn btn-outline" onclick="verificarEstadoBD()">Volver a verificar</button>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="cerrarModalPerfil()">Cerrar</button>
+      <button class="btn btn-primary" onclick="guardarPerfil()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════════════════════════════
+     SCRIPT
+═══════════════════════════════════════════ -->
+<script>
+const API = 'http://localhost:3000';
+const SESION_KEY = 'ecomercado_session';
+const PERFIL_KEY  = 'ecomercado_perfil';
+
+function obtenerSesion() {
+  try { return JSON.parse(localStorage.getItem(SESION_KEY) || 'null'); }
+  catch (e) { return null; }
+}
+
+// Solo administradores (id_rol === 1) pueden ver este panel.
+function comprobarSesion() {
+  const sesion = obtenerSesion();
+  if (!sesion || sesion.id_rol !== 1) {
+    window.location.replace('login.html');
+    return null;
+  }
+  return sesion;
+}
+
+// ── Navegación ───────────────────────────────
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    item.classList.add('active');
+    const page = item.dataset.page;
+    document.getElementById('page-' + page).classList.add('active');
+    const titles = {
+      dashboard: 'Vista general',
+      productos:  'Productos',
+      usuarios:   'Usuarios',
+      ventas:     'Ventas',
+      reportes:   'Reportes y folios',
+      monitor:    'Monitor de actividad',
+    };
+    document.getElementById('page-title').textContent = titles[page] || page;
+    cargarPagina(page);
+  });
+});
+
+function recargarPagina() {
+  const active = document.querySelector('.nav-item.active')?.dataset.page;
+  if (active) cargarPagina(active);
+}
+
+function cargarPagina(page) {
+  const fn = { dashboard, productos, usuarios, ventas, reportes, monitor };
+  fn[page]?.();
+}
+
+// ── Fetch helper ─────────────────────────────
+async function api(path, opts = {}) {
+  const r = await fetch(API + path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+  });
+  if (!r.ok) throw new Error((await r.json()).error || r.statusText);
+  return r.json();
+}
+
+// ── Toast ─────────────────────────────────────
+function toast(msg, tipo = 'verde') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast ${tipo} show`;
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ── Modal ─────────────────────────────────────
+function abrirModal(id)  { document.getElementById(id).classList.add('open'); }
+function cerrarModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// Cerrar modal al hacer clic fuera de su contenido
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+  ov.addEventListener('click', (e) => {
+    if (e.target === ov) {
+      if (ov.id === 'modal-perfil') return cerrarModalPerfil();
+      ov.classList.remove('open');
+    }
+  });
+});
+
+// ── Filtro de tabla ───────────────────────────
+function filtrarTabla(tbodyId, q) {
+  const tbody = document.getElementById(tbodyId);
+  const rows  = tbody.querySelectorAll('tr');
+  const lq    = q.toLowerCase();
+  rows.forEach(r => {
+    r.style.display = r.textContent.toLowerCase().includes(lq) ? '' : 'none';
+  });
+}
+
+// ── Helpers de render ─────────────────────────
+function fmtMXN(v) {
+  return '$' + parseFloat(v || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtFecha(v) {
+  if (!v) return '—';
+  return new Date(v).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' });
+}
+function rolBadge(id) {
+  const m = { 1: ['Administrador','badge-rojo'], 2: ['Vendedor','badge-naranja'], 3: ['Cliente','badge-azul'] };
+  const [label, cls] = m[id] || ['Desconocido','badge-gris'];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+function rolTexto(id) {
+  return { 1: 'Administrador', 2: 'Vendedor', 3: 'Cliente' }[id] || 'Desconocido';
+}
+function rowEmpty(cols, msg) {
+  return `<tr><td colspan="${cols}" style="text-align:center;padding:32px;color:#9e9e9e">${msg}</td></tr>`;
+}
+
+// ══════════════════════════════════════════════
+// VENTANA DE DETALLE (producto / usuario / venta)
+// ══════════════════════════════════════════════
+function campoDetalle(label, valor, full = false) {
+  return `<div class="detalle-item${full ? ' full' : ''}">
+            <div class="detalle-label">${label}</div>
+            <div class="detalle-valor">${valor ?? '—'}</div>
+          </div>`;
+}
+
+function abrirDetalleProducto(p) {
+  document.getElementById('detalle-titulo').textContent = `Producto #${p.id}`;
+  document.getElementById('detalle-contenido').innerHTML = `
+    ${campoDetalle('ID', p.id)}
+    ${campoDetalle('Nombre', p.nombre)}
+    ${campoDetalle('Categoría', p.categoria_nombre)}
+    ${campoDetalle('Precio', fmtMXN(p.precio))}
+    ${campoDetalle('Stock', `${p.stock} ${p.unidad_medida}`)}
+    ${campoDetalle('ID Vendedor', p.id_vendedor)}
+    ${campoDetalle('Descripción', p.descripcion || 'Sin descripción', true)}
+    ${campoDetalle('Imagen', p.imagen_url ? `<a href="${p.imagen_url}" target="_blank">Ver imagen</a>` : 'Sin imagen', true)}
+  `;
+  document.getElementById('detalle-acciones').innerHTML = `
+    <button class="btn btn-outline" onclick="cerrarModal('modal-detalle')">Cerrar</button>
+    <button class="btn btn-danger" onclick="cerrarModal('modal-detalle'); eliminarProducto(${p.id})">Eliminar</button>
+  `;
+  abrirModal('modal-detalle');
+}
+
+function abrirDetalleUsuario(u) {
+  document.getElementById('detalle-titulo').textContent = `Usuario #${u.id_usuario}`;
+  document.getElementById('detalle-contenido').innerHTML = `
+    ${campoDetalle('ID', u.id_usuario)}
+    ${campoDetalle('Nombre', `${u.nombre} ${u.apellido || ''}`)}
+    ${campoDetalle('Email', u.email)}
+    ${campoDetalle('Rol', rolTexto(u.id_rol))}
+    ${campoDetalle('Estado', u.activo ? 'Activo' : 'Inactivo')}
+    ${campoDetalle('Registrado', fmtFecha(u.fecha_registro))}
+  `;
+  document.getElementById('detalle-acciones').innerHTML = `
+    <button class="btn btn-outline" onclick="cerrarModal('modal-detalle')">Cerrar</button>
+    <button class="btn btn-primary" onclick="cerrarModal('modal-detalle'); ascenderUsuario(${u.id_usuario})">Cambiar rol</button>
+  `;
+  abrirModal('modal-detalle');
+}
+
+function abrirDetalleVenta(v) {
+  const idVenta = v.id_venta;
+  document.getElementById('detalle-titulo').textContent = `Venta #${idVenta}${v.folio ? ' · ' + v.folio : ''}`;
+  document.getElementById('detalle-contenido').innerHTML = `
+    ${campoDetalle('ID Venta', idVenta)}
+    ${campoDetalle('Folio', v.folio || 'Sin generar')}
+    ${campoDetalle('Cliente', v.cliente)}
+    ${campoDetalle('Total', fmtMXN(v.total))}
+    ${campoDetalle('Método de pago', v.metodo_pago)}
+    ${campoDetalle('Fecha', fmtFecha(v.fecha_venta))}
+    ${campoDetalle('Respaldo en MongoDB', v.en_mongo ? 'Sí, almacenado en Atlas' : 'No generado aún', true)}
+  `;
+  document.getElementById('detalle-acciones').innerHTML = `
+    <button class="btn btn-outline" onclick="cerrarModal('modal-detalle')">Cerrar</button>
+    <button class="btn btn-primary" onclick="generarFolioManual(${idVenta})">
+      ${v.folio ? 'Descargar PDF' : 'Generar folio y PDF'}
+    </button>
+  `;
+  abrirModal('modal-detalle');
+}
+
+// ══════════════════════════════════════════════
+// MENÚ DE AVATAR
+// ══════════════════════════════════════════════
+function toggleAvatarMenu(e) {
+  e.stopPropagation();
+  document.getElementById('avatar-menu').classList.toggle('open');
+}
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('avatar-wrap');
+  if (!wrap.contains(e.target)) document.getElementById('avatar-menu').classList.remove('open');
+});
+
+function abrirPerfil(tab) {
+  document.getElementById('avatar-menu').classList.remove('open');
+  // Recuerda el tema activo al abrir, para poder revertir si se cierra sin guardar
+  temaAlAbrirPerfil = document.documentElement.getAttribute('data-tema') || 'verde';
+  precargarFormularioPerfil();
+  abrirModal('modal-perfil');
+  cambiarTabPerfil(tab);
+  if (tab === 'neon' || tab === 'mongo') verificarEstadoBD();
+  if (tab === 'general') cargarDatosGeneral();
+}
+
+let temaAlAbrirPerfil = 'verde';
+
+function cambiarTabPerfil(tab) {
+  document.querySelectorAll('.perfil-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.perfil-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === tab));
+}
+
+// Aplica un tema de color al instante (cambia las variables CSS en <html>)
+function aplicarTema(tema) {
+  if (tema && tema !== 'verde') document.documentElement.setAttribute('data-tema', tema);
+  else document.documentElement.removeAttribute('data-tema');
+}
+
+// Llamado al cambiar el <select> de color: previsualiza sin guardar todavía
+function previsualizarTema(tema) {
+  aplicarTema(tema);
+}
+
+// Cierra el modal de perfil; si no se guardó, revierte el tema a como estaba
+function cerrarModalPerfil() {
+  aplicarTema(temaAlAbrirPerfil);
+  cerrarModal('modal-perfil');
+}
+
+// Rellena el formulario de "Personalizar perfil" con lo guardado actualmente
+function precargarFormularioPerfil() {
+  const guardado = leerPerfilGuardado();
+  document.getElementById('perfil-nombre').value     = guardado.nombre || document.getElementById('admin-nombre').textContent;
+  document.getElementById('perfil-color').value      = guardado.tema || 'verde';
+  document.getElementById('perfil-iniciales').value  = guardado.iniciales || document.getElementById('avatar-initials').textContent;
+  document.getElementById('perfil-foto').value       = guardado.foto || '';
+}
+
+function leerPerfilGuardado() {
+  try { return JSON.parse(localStorage.getItem(PERFIL_KEY) || '{}'); }
+  catch (e) { return {}; }
+}
+
+// Aplica nombre/iniciales/foto/tema guardados a la interfaz (sidebar + menú de avatar)
+function aplicarPerfilALaInterfaz(perfil) {
+  if (perfil.nombre) {
+    document.getElementById('admin-nombre').textContent = perfil.nombre;
+    document.getElementById('menu-admin-nombre').textContent = perfil.nombre;
+  }
+  const avatar = document.getElementById('avatar-initials');
+  if (perfil.foto) {
+    avatar.classList.add('con-foto');
+    avatar.style.backgroundImage = `url('${perfil.foto}')`;
+    avatar.textContent = '';
+  } else {
+    avatar.classList.remove('con-foto');
+    avatar.style.backgroundImage = '';
+    if (perfil.iniciales) avatar.textContent = perfil.iniciales;
+  }
+  aplicarTema(perfil.tema || 'verde');
+}
+
+function guardarPerfil() {
+  const nombre     = document.getElementById('perfil-nombre').value.trim();
+  const iniciales  = document.getElementById('perfil-iniciales').value.trim().toUpperCase();
+  const tema       = document.getElementById('perfil-color').value;
+  const foto       = document.getElementById('perfil-foto').value.trim();
+
+  const perfil = { nombre, iniciales, tema, foto };
+  try {
+    localStorage.setItem(PERFIL_KEY, JSON.stringify(perfil));
+  } catch (e) {
+    toast('No se pudo guardar el perfil en este navegador', 'rojo');
+    return;
+  }
+
+  aplicarPerfilALaInterfaz(perfil);
+  toast('Perfil actualizado');
+  cerrarModal('modal-perfil');
+}
+
+function guardarSeguridad() {
+  const nueva = document.getElementById('sec-nueva').value;
+  const confirmar = document.getElementById('sec-confirmar').value;
+  if (!nueva || nueva !== confirmar) return toast('Las contraseñas no coinciden', 'rojo');
+  toast('Contraseña actualizada');
+  document.getElementById('sec-actual').value = '';
+  document.getElementById('sec-nueva').value = '';
+  document.getElementById('sec-confirmar').value = '';
+}
+
+function cargarDatosGeneral() {
+  const sesion = obtenerSesion();
+  document.getElementById('pg-id').textContent     = sesion?.id_usuario ?? '—';
+  document.getElementById('pg-nombre').textContent  = document.getElementById('admin-nombre').textContent;
+  document.getElementById('pg-email').textContent   = document.getElementById('admin-email').textContent;
+  document.getElementById('pg-rol').textContent     = rolTexto(sesion?.id_rol ?? 1);
+  document.getElementById('pg-estado').textContent  = 'Activo';
+  document.getElementById('pg-conexion').textContent = fmtFecha(sesion?.login_at || new Date());
+}
+
+// Estado de Neon y MongoDB (a partir del endpoint de monitor, si está disponible)
+async function verificarEstadoBD() {
+  // Neon: si /api/usuarios responde, Postgres/Neon está activo
+  try {
+    await api('/api/usuarios');
+    pintarEstadoBD('neon', true);
+  } catch (e) {
+    pintarEstadoBD('neon', false);
+  }
+  // Mongo: si /api/reportes responde sin error, asumimos Atlas alcanzable
+  try {
+    await api('/api/reportes');
+    pintarEstadoBD('mongo', true);
+  } catch (e) {
+    pintarEstadoBD('mongo', false);
+  }
+}
+
+function pintarEstadoBD(servicio, activo) {
+  const dot   = document.getElementById(servicio + '-dot');
+  const texto = document.getElementById(servicio + '-texto');
+  const dotMenu = document.getElementById('dot-' + servicio);
+  dot.className = 'dot ' + (activo ? 'activo' : 'inactivo');
+  texto.textContent = activo ? 'Activo' : 'Inactivo';
+  if (dotMenu) dotMenu.style.background = activo ? '#43a047' : 'var(--rojo)';
+  document.getElementById(servicio + '-ultima').textContent = fmtFecha(new Date());
+}
+
+function cerrarSesion() {
+  document.getElementById('avatar-menu').classList.remove('open');
+  if (confirm('¿Cerrar sesión?')) {
+    localStorage.removeItem(SESION_KEY);
+    window.location.href = 'login.html';
+  }
+}
+
+// ══════════════════════════════════════════════
+// GENERACIÓN DE PDF DEL FOLIO
+// ══════════════════════════════════════════════
+function generarPdfFolio(venta) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  doc.setFontSize(16);
+  doc.setTextColor(27, 94, 32);
+  doc.text('EcoMercado', 14, 18);
+  doc.setFontSize(11);
+  doc.setTextColor(60, 60, 60);
+  doc.text('Comprobante de venta', 14, 25);
+
+  doc.setDrawColor(200, 200, 200);
+  doc.line(14, 29, 196, 29);
+
+  doc.setFontSize(12);
+  doc.setTextColor(20, 20, 20);
+  let y = 40;
+  const linea = (label, valor) => {
+    doc.setFont(undefined, 'bold');
+    doc.text(label + ':', 14, y);
+    doc.setFont(undefined, 'normal');
+    doc.text(String(valor ?? '—'), 60, y);
+    y += 9;
+  };
+
+  linea('Folio', venta.folio);
+  linea('ID de venta', venta.id_venta);
+  linea('Cliente', venta.cliente);
+  linea('Total', fmtMXN(venta.total));
+  linea('Método de pago', venta.metodo_pago);
+  linea('Fecha', fmtFecha(venta.fecha_venta));
+
+  doc.setDrawColor(200, 200, 200);
+  doc.line(14, y + 2, 196, y + 2);
+  doc.setFontSize(9);
+  doc.setTextColor(140, 140, 140);
+  doc.text('Generado automáticamente por el Panel de Administración EcoMercado.', 14, y + 12);
+  doc.text('Documento generado: ' + new Date().toLocaleString('es-MX'), 14, y + 18);
+
+  const nombreArchivo = `folio_${(venta.folio || venta.id_venta)}.pdf`;
+  doc.save(nombreArchivo);
+}
+
+// ── DASHBOARD ─────────────────────────────────
+async function dashboard() {
+  try {
+    const [reportes, productos, usuarios] = await Promise.all([
+      api('/api/reportes'),
+      api('/api/productos'),
+      api('/api/usuarios'),
+    ]);
+
+    const totalIngresos = reportes.reduce((s, r) => s + parseFloat(r.total || 0), 0);
+    document.getElementById('m-ventas').textContent    = reportes.length;
+    document.getElementById('m-ingresos').textContent  = fmtMXN(totalIngresos);
+    document.getElementById('m-productos').textContent = productos.length;
+    document.getElementById('m-usuarios').textContent  = usuarios.length;
+
+    // Ventas recientes (top 8)
+    const tbody1 = document.getElementById('tabla-ventas-recientes');
+    const recientes = reportes.slice(0, 8);
+    tbody1.innerHTML = recientes.length
+      ? recientes.map(r => `
+          <tr class="fila-clic" onclick='abrirDetalleVenta(${JSON.stringify(r).replace(/'/g, "&apos;")})'>
+            <td><code style="font-size:11px">${r.folio || '—'}</code></td>
+            <td>${r.cliente}</td>
+            <td>${fmtMXN(r.total)}</td>
+            <td><span class="badge badge-gris">${r.metodo_pago}</span></td>
+          </tr>`).join('')
+      : rowEmpty(4, 'Sin ventas registradas');
+
+    // Ranking
+    const ranking = await api('/api/productos/ranking');
+    const tbody2  = document.getElementById('tabla-ranking');
+    tbody2.innerHTML = ranking.length
+      ? ranking.slice(0, 8).map((p, i) => `
+          <tr>
+            <td><span style="color:var(--gris-400);margin-right:6px">${i+1}.</span>${p.nombre}</td>
+            <td>${p.cantidad_vendida} ${p.unidad_medida}</td>
+            <td>${fmtMXN(p.total_ingresos)}</td>
+          </tr>`).join('')
+      : rowEmpty(3, 'Sin datos de ventas aún');
+  } catch (e) {
+    toast('Error al cargar dashboard: ' + e.message, 'rojo');
+  }
+}
+
+// ── PRODUCTOS ─────────────────────────────────
+async function productos() {
+  const tbody = document.getElementById('tabla-productos');
+  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px"><span class="spinner"></span></td></tr>`;
+  try {
+    const data = await api('/api/productos');
+    tbody.innerHTML = data.length
+      ? data.map(p => `
+          <tr class="fila-clic" onclick='abrirDetalleProducto(${JSON.stringify(p).replace(/'/g, "&apos;")})'>
+            <td><code style="font-size:11px">#${p.id}</code></td>
+            <td><strong>${p.nombre}</strong></td>
+            <td><span class="badge badge-verde">${p.categoria_nombre || '—'}</span></td>
+            <td>${fmtMXN(p.precio)}</td>
+            <td>${p.stock} <span style="color:var(--gris-500);font-size:11px">${p.unidad_medida}</span></td>
+            <td onclick="event.stopPropagation()">
+              <button class="btn btn-outline btn-sm" onclick="eliminarProducto(${p.id})">Eliminar</button>
+            </td>
+          </tr>`).join('')
+      : rowEmpty(6, 'No hay productos. Agrega el primero.');
+  } catch (e) {
+    toast('Error al cargar productos: ' + e.message, 'rojo');
+  }
+}
+
+async function crearProducto() {
+  const body = {
+    nombre:       document.getElementById('prod-nombre').value.trim(),
+    precio:       parseFloat(document.getElementById('prod-precio').value),
+    stock:        parseInt(document.getElementById('prod-stock').value) || 0,
+    unidad_medida:document.getElementById('prod-unidad').value,
+    id_categoria: parseInt(document.getElementById('prod-categoria').value) || 1,
+    id_vendedor:  parseInt(document.getElementById('prod-vendedor').value) || 1,
+    descripcion:  document.getElementById('prod-descripcion').value,
+    imagen_url:   document.getElementById('prod-imagen').value,
+  };
+  if (!body.nombre || isNaN(body.precio)) return toast('Nombre y precio son requeridos', 'rojo');
+  try {
+    await api('/api/productos', { method: 'POST', body: JSON.stringify(body) });
+    cerrarModal('modal-producto');
+    toast('Producto creado correctamente');
+    productos();
+  } catch (e) { toast(e.message, 'rojo'); }
+}
+
+async function eliminarProducto(id) {
+  if (!confirm(`¿Eliminar producto #${id}? Esta acción no se puede deshacer.`)) return;
+  try {
+    await api('/api/productos/' + id, { method: 'DELETE' });
+    toast('Producto eliminado');
+    productos();
+  } catch (e) { toast(e.message, 'rojo'); }
+}
+
+// ── USUARIOS ──────────────────────────────────
+async function usuarios() {
+  const tbody = document.getElementById('tabla-usuarios');
+  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px"><span class="spinner"></span></td></tr>`;
+  try {
+    const data = await api('/api/usuarios');
+    tbody.innerHTML = data.length
+      ? data.map(u => `
+          <tr class="fila-clic" onclick='abrirDetalleUsuario(${JSON.stringify(u).replace(/'/g, "&apos;")})'>
+            <td><code style="font-size:11px">#${u.id_usuario}</code></td>
+            <td>${u.nombre} ${u.apellido || ''}</td>
+            <td style="color:var(--gris-500)">${u.email}</td>
+            <td>${rolBadge(u.id_rol)}</td>
+            <td><span class="badge ${u.activo ? 'badge-verde' : 'badge-rojo'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
+            <td onclick="event.stopPropagation()">
+              <button class="btn btn-outline btn-sm" onclick="ascenderUsuario(${u.id_usuario})">Cambiar rol</button>
+            </td>
+          </tr>`).join('')
+      : rowEmpty(6, 'No hay usuarios registrados.');
+  } catch (e) {
+    toast('Error al cargar usuarios: ' + e.message, 'rojo');
+  }
+}
+
+async function crearUsuario() {
+  const body = {
+    nombre:   document.getElementById('usr-nombre').value.trim(),
+    email:    document.getElementById('usr-email').value.trim(),
+    password: document.getElementById('usr-password').value,
+    id_rol:   parseInt(document.getElementById('usr-rol').value),
+  };
+  if (!body.nombre || !body.email || !body.password) return toast('Todos los campos son requeridos', 'rojo');
+  try {
+    await api('/api/usuarios/registrar', { method: 'POST', body: JSON.stringify(body) });
+    cerrarModal('modal-usuario');
+    toast('Usuario registrado');
+    usuarios();
+  } catch (e) { toast(e.message, 'rojo'); }
+}
+
+async function ascenderUsuario(id) {
+  const nuevoRolId = prompt('Nuevo ID de rol:\n1 = Administrador\n2 = Vendedor\n3 = Cliente');
+  if (!nuevoRolId) return;
+  try {
+    await api(`/api/usuarios/ascender/${id}`, { method: 'PUT', body: JSON.stringify({ nuevoRolId: parseInt(nuevoRolId) }) });
+    toast('Rol actualizado');
+    usuarios();
+  } catch (e) { toast(e.message, 'rojo'); }
+}
+
+// ── VENTAS ────────────────────────────────────
+async function ventas() {
+  const tbody = document.getElementById('tabla-ventas');
+  tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px"><span class="spinner"></span></td></tr>`;
+  try {
+    const data = await api('/api/reportes');
+    tbody.innerHTML = data.length
+      ? data.map(v => `
+          <tr class="fila-clic" onclick='abrirDetalleVenta(${JSON.stringify(v).replace(/'/g, "&apos;")})'>
+            <td><code style="font-size:11px">#${v.id_venta}</code></td>
+            <td>${v.cliente}</td>
+            <td><strong>${fmtMXN(v.total)}</strong></td>
+            <td><span class="badge badge-gris">${v.metodo_pago}</span></td>
+            <td style="color:var(--gris-500)">${fmtFecha(v.fecha_venta)}</td>
+          </tr>`).join('')
+      : rowEmpty(5, 'No hay ventas registradas.');
+  } catch (e) { toast('Error al cargar ventas: ' + e.message, 'rojo'); }
+}
+
+// ── REPORTES ──────────────────────────────────
+async function reportes() {
+  const tbody = document.getElementById('tabla-reportes');
+  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px"><span class="spinner"></span></td></tr>`;
+  try {
+    const data = await api('/api/reportes');
+    tbody.innerHTML = data.length
+      ? data.map(r => `
+          <tr class="fila-clic" onclick='abrirDetalleVenta(${JSON.stringify(r).replace(/'/g, "&apos;")})'>
+            <td><code style="font-family:var(--font-mono);font-size:11px">${r.folio || '—'}</code></td>
+            <td>${r.cliente}</td>
+            <td>${fmtMXN(r.total)}</td>
+            <td><span class="badge badge-gris">${r.metodo_pago}</span></td>
+            <td style="color:var(--gris-500)">${fmtFecha(r.fecha_venta)}</td>
+            <td onclick="event.stopPropagation()">
+              ${r.en_mongo
+                ? `<button class="btn btn-outline btn-sm" onclick='generarPdfFolio(${JSON.stringify(r).replace(/'/g, "&apos;")})'>Descargar PDF</button>`
+                : `<button class="btn btn-outline btn-sm" onclick="generarFolioManual(${r.id_venta})">Generar folio</button>`}
+            </td>
+          </tr>`).join('')
+      : rowEmpty(6, 'No hay reportes.');
+  } catch (e) { toast('Error al cargar reportes: ' + e.message, 'rojo'); }
+}
+
+async function generarFolioManual(id_venta) {
+  try {
+    const r = await api(`/api/reportes/generar/${id_venta}`, { method: 'POST' });
+    toast(`Folio generado: ${r.folio}`);
+    // Genera y descarga el PDF de inmediato con los datos devueltos por el servidor
+    generarPdfFolio({
+      folio: r.folio,
+      id_venta: r.id_venta ?? id_venta,
+      cliente: r.cliente,
+      total: r.total,
+      metodo_pago: r.metodo_pago,
+      fecha_venta: r.fecha_venta,
+    });
+    cerrarModal('modal-detalle');
+    reportes();
+    ventas();
+  } catch (e) { toast(e.message, 'rojo'); }
+}
+
+// ── MONITOR ───────────────────────────────────
+async function monitor() {
+  try {
+    const [resumen, actividad, alertas, ips] = await Promise.all([
+      api('/api/monitor/resumen'),
+      api('/api/monitor/actividad?limit=20'),
+      api('/api/monitor/alertas'),
+      api('/api/monitor/ips'),
+    ]);
+
+    // Métricas
+    const container = document.getElementById('monitor-metrics');
+    container.innerHTML = `
+      <div class="metric-card azul">
+        <div class="metric-label">Total solicitudes</div>
+        <div class="metric-value">${resumen.total_solicitudes}</div>
+        <div class="metric-sub">últimas 24h: ${resumen.solicitudes_24h}</div>
+      </div>
+      <div class="metric-card verde">
+        <div class="metric-label">Tiempo promedio</div>
+        <div class="metric-value">${resumen.tiempos?.promedio_ms || 0}<span style="font-size:14px;font-weight:400"> ms</span></div>
+        <div class="metric-sub">máx: ${resumen.tiempos?.maximo_ms || 0} ms</div>
+      </div>
+    `;
+
+    // Logs recientes
+    const logs = document.getElementById('monitor-logs');
+    logs.innerHTML = actividad.registros?.length
+      ? actividad.registros.map(r => {
+          const cls = r.estado === 'OK' ? 'ok' : r.estado === 'NO_AUTH' ? 'noauth' : 'error';
+          return `
+            <div class="log-entry">
+              <span class="log-dot ${cls}"></span>
+              <span style="font-weight:500">${r.metodo}</span>
+              <span style="color:var(--gris-500)">${r.ruta}</span>
+              <span class="badge badge-${r.status_code < 400 ? 'verde' : 'rojo'}" style="font-size:11px">${r.status_code}</span>
+              <span class="log-meta">${r.ip_origen} · ${fmtFecha(r.fecha_hora)}</span>
+            </div>`;
+        }).join('')
+      : '<div style="padding:20px;text-align:center;color:var(--gris-500)">Sin actividad registrada aún</div>';
+
+    // Alertas
+    const alertasEl = document.getElementById('monitor-alertas');
+    const errores   = alertas.errores_recientes || [];
+    alertasEl.innerHTML = errores.length
+      ? errores.slice(0, 10).map(e => `
+          <div class="log-entry">
+            <span class="log-dot error"></span>
+            <span style="font-weight:500">${e.metodo}</span>
+            <span style="color:var(--gris-500)">${e.ruta}</span>
+            <span class="badge badge-rojo" style="font-size:11px">${e.status_code}</span>
+            <span class="log-meta">${e.ip_origen}</span>
+          </div>`).join('')
+      : '<div style="padding:20px;text-align:center;color:var(--gris-500)">Sin alertas recientes</div>';
+
+    // IPs
+    const tablaIps = document.getElementById('tabla-ips');
+    tablaIps.innerHTML = ips.length
+      ? ips.map(ip => `
+          <tr>
+            <td><code style="font-size:12px">${ip.ip_origen}</code></td>
+            <td>${ip.total_solicitudes}</td>
+            <td>${ip.escrituras}</td>
+            <td>${ip.errores > 0 ? `<span class="badge badge-rojo">${ip.errores}</span>` : '0'}</td>
+            <td style="color:var(--gris-500)">${fmtFecha(ip.ultima_actividad)}</td>
+          </tr>`).join('')
+      : rowEmpty(5, 'Sin datos de IPs todavía');
+  } catch (e) {
+    toast('Error al cargar monitor: ' + e.message, 'rojo');
+  }
+}
+
+// ── Init ──────────────────────────────────────
+(function iniciar() {
+  const sesion = comprobarSesion();
+  if (!sesion) return; // ya redirigido a login.html
+
+  document.getElementById('admin-nombre').textContent = `${sesion.nombre || ''} ${sesion.apellido || ''}`.trim() || 'Administrador';
+  document.getElementById('admin-email').textContent  = sesion.email || '—';
+  document.getElementById('menu-admin-nombre').textContent = `${sesion.nombre || ''} ${sesion.apellido || ''}`.trim() || 'Administrador';
+  document.getElementById('menu-admin-email').textContent  = sesion.email || '—';
+  const inicialesPorDefecto = ((sesion.nombre || 'A')[0] + (sesion.apellido || 'D')[0]).toUpperCase();
+  document.getElementById('avatar-initials').textContent = inicialesPorDefecto;
+
+  // Restaura nombre/iniciales/foto/tema personalizados por el administrador
+  aplicarPerfilALaInterfaz(leerPerfilGuardado());
+
+  dashboard();
+  verificarEstadoBD();
+})();
+</script>
+</body>
+</html>

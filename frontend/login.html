@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EcoMercado — Acceso de administrador</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 15px; }
+
+  :root {
+    --verde:       #1b5e20;
+    --verde-mid:   #2e7d32;
+    --verde-light: #e8f5e9;
+    --verde-pale:  #f1f8f1;
+    --naranja:     #f57c00;
+    --naranja-bg:  #fff3e0;
+    --rojo:        #c62828;
+    --rojo-bg:     #ffebee;
+    --gris-900:    #1a1a1a;
+    --gris-700:    #3d3d3d;
+    --gris-500:    #757575;
+    --gris-300:    #bdbdbd;
+    --gris-100:    #f5f5f5;
+    --blanco:      #ffffff;
+    --radius:      8px;
+    --font:        'Segoe UI', system-ui, sans-serif;
+  }
+
+  /* Reaplica el mismo tema elegido en "Personalizar perfil" para que el login se vea consistente */
+  :root[data-tema="azul"]    { --verde:#0d3b66; --verde-mid:#1565c0; --verde-light:#e3f2fd; --verde-pale:#f0f6fd; --naranja:#00acc1; --naranja-bg:#e0f7fa; }
+  :root[data-tema="naranja"] { --verde:#9a3412; --verde-mid:#c2410c; --verde-light:#ffedd5; --verde-pale:#fff7ed; --naranja:#65a30d; --naranja-bg:#f0fdf4; }
+  :root[data-tema="morado"]  { --verde:#4527a0; --verde-mid:#5e35b1; --verde-light:#ede7f6; --verde-pale:#f5f2fb; --naranja:#d81b60; --naranja-bg:#fce4ec; }
+  :root[data-tema="rojo"]    { --verde:#8e0000; --verde-mid:#c62828; --verde-light:#ffebee; --verde-pale:#fff5f5; --naranja:#f9a825; --naranja-bg:#fffde7; }
+  :root[data-tema="teal"]    { --verde:#00695c; --verde-mid:#00897b; --verde-light:#e0f2f1; --verde-pale:#f0f9f8; --naranja:#ef6c00; --naranja-bg:#fff3e0; }
+  :root[data-tema="gris"]    { --verde:#37474f; --verde-mid:#455a64; --verde-light:#eceff1; --verde-pale:#f5f7f8; --naranja:#fb8c00; --naranja-bg:#fff3e0; }
+
+  body {
+    font-family: var(--font);
+    background: linear-gradient(160deg, var(--verde) 0%, var(--verde-mid) 45%, #14401a 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .login-card {
+    background: var(--blanco);
+    border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    width: 380px;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .login-head {
+    padding: 28px 28px 20px;
+    text-align: center;
+  }
+  .eco-mark {
+    width: 48px; height: 48px;
+    background: var(--naranja);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px; color: #fff;
+    margin: 0 auto 14px;
+  }
+  .login-head h1 { font-size: 19px; font-weight: 600; color: var(--gris-900); }
+  .login-head p  { font-size: 12.5px; color: var(--gris-500); margin-top: 4px; }
+
+  .login-aviso {
+    margin: 0 28px 4px;
+    background: var(--verde-pale);
+    border: 0.5px solid var(--verde-light);
+    border-radius: var(--radius);
+    padding: 9px 12px;
+    font-size: 11.5px;
+    color: var(--verde-mid);
+    text-align: center;
+  }
+
+  .login-body { padding: 20px 28px 8px; }
+
+  .form-group { margin-bottom: 14px; }
+  label { display: block; font-size: 12px; font-weight: 500; color: var(--gris-700); margin-bottom: 5px; }
+  input {
+    width: 100%; padding: 10px 12px;
+    border: 0.5px solid var(--gris-300); border-radius: var(--radius);
+    font-size: 13.5px; font-family: var(--font);
+    background: var(--blanco); color: var(--gris-900);
+    outline: none; transition: border-color .15s;
+  }
+  input:focus { border-color: var(--verde-mid); box-shadow: 0 0 0 2px rgba(46,125,50,.12); }
+
+  .btn-login {
+    width: 100%;
+    padding: 11px 14px;
+    border: none; border-radius: var(--radius);
+    background: var(--verde-mid); color: #fff;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: opacity .15s;
+  }
+  .btn-login:hover { opacity: .9; }
+  .btn-login:disabled { opacity: .6; cursor: default; }
+
+  .login-error {
+    display: none;
+    background: var(--rojo-bg); color: var(--rojo);
+    border-radius: var(--radius);
+    padding: 9px 12px;
+    font-size: 12.5px;
+    margin-bottom: 14px;
+  }
+  .login-error.show { display: block; }
+
+  .login-foot {
+    padding: 16px 28px 24px;
+    text-align: center;
+    font-size: 11.5px;
+    color: var(--gris-500);
+  }
+
+  .spinner {
+    display: inline-block; width: 15px; height: 15px;
+    border: 2px solid rgba(255,255,255,.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="login-card">
+  <div class="login-head">
+    <div class="eco-mark">ECO</div>
+    <h1>EcoMercado</h1>
+    <p>Panel de Administración</p>
+  </div>
+
+  <div class="login-aviso">Acceso exclusivo para cuentas con rol de Administrador</div>
+
+  <form class="login-body" id="form-login" onsubmit="iniciarSesion(event)">
+    <div class="login-error" id="login-error"></div>
+
+    <div class="form-group">
+      <label for="login-email">Correo electrónico</label>
+      <input type="email" id="login-email" placeholder="admin@ecomercado.com" autocomplete="username" required />
+    </div>
+
+    <div class="form-group">
+      <label for="login-password">Contraseña</label>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" required />
+    </div>
+
+    <button type="submit" class="btn-login" id="btn-login">Iniciar sesión</button>
+  </form>
+
+  <div class="login-foot">Solo el personal administrativo de EcoMercado puede acceder a este panel.</div>
+</div>
+
+<script>
+  // ── Configuración ──────────────────────────────────────────
+  // Ajusta esta URL al endpoint de login real de tu backend.
+  // Se espera un POST con { email, password } y una respuesta 200 con un
+  // objeto de usuario que incluya al menos: id_usuario, nombre, apellido,
+  // email, id_rol (1 = Administrador, 2 = Vendedor, 3 = Cliente).
+  const API = 'http://localhost:3000';
+  const LOGIN_ENDPOINT = '/api/auth/login';
+  const SESION_KEY = 'ecomercado_session';
+  const PERFIL_KEY = 'ecomercado_perfil';
+  const DESTINO_PANEL = 'panel.html';
+
+  // Si ya hay una sesión de administrador válida, entra directo al panel
+  (function comprobarSesionExistente() {
+    try {
+      const sesion = JSON.parse(localStorage.getItem(SESION_KEY) || 'null');
+      if (sesion && sesion.id_rol === 1) window.location.replace(DESTINO_PANEL);
+    } catch (e) {}
+  })();
+
+  // Aplica el tema guardado (si el admin ya personalizó su perfil antes) para que el login no desentone
+  (function aplicarTemaGuardado() {
+    try {
+      const perfil = JSON.parse(localStorage.getItem(PERFIL_KEY) || '{}');
+      if (perfil.tema) document.documentElement.setAttribute('data-tema', perfil.tema);
+    } catch (e) {}
+  })();
+
+  function mostrarError(msg) {
+    const el = document.getElementById('login-error');
+    el.textContent = msg;
+    el.classList.add('show');
+  }
+  function ocultarError() {
+    document.getElementById('login-error').classList.remove('show');
+  }
+
+  async function iniciarSesion(e) {
+    e.preventDefault();
+    ocultarError();
+
+    const email    = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const btn      = document.getElementById('btn-login');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Verificando…';
+
+    try {
+      const r = await fetch(API + LOGIN_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await r.json().catch(() => ({}));
+
+      if (!r.ok) {
+        throw new Error(data.error || 'Correo o contraseña incorrectos.');
+      }
+
+      // El backend puede devolver el usuario directamente o anidado en data.usuario
+      const usuario = data.usuario || data;
+
+      if (!usuario || usuario.id_rol === undefined) {
+        throw new Error('Respuesta de inicio de sesión inválida.');
+      }
+
+      if (usuario.id_rol !== 1) {
+        throw new Error('Esta cuenta no tiene permisos de administrador.');
+      }
+
+      const sesion = {
+        id_usuario: usuario.id_usuario,
+        nombre:     usuario.nombre,
+        apellido:   usuario.apellido,
+        email:      usuario.email || email,
+        id_rol:     usuario.id_rol,
+        token:      data.token || usuario.token || null,
+        login_at:   new Date().toISOString(),
+      };
+
+      localStorage.setItem(SESION_KEY, JSON.stringify(sesion));
+      window.location.href = DESTINO_PANEL;
+
+    } catch (err) {
+      mostrarError(err.message || 'No se pudo iniciar sesión. Intenta de nuevo.');
+      btn.disabled = false;
+      btn.textContent = 'Iniciar sesión';
+    }
+  }
+</script>
+</body>
+</html>
